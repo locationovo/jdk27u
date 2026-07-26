@@ -172,9 +172,9 @@ jobs:
 
           # 2.改引导Java
           s = re.sub(
-          r'--with-boot-jdk=[^ ]+',
-          '--with-boot-jdk=$JAVA_HOME',
-          s
+              r'--with-boot-jdk=[^ ]+',
+              '--with-boot-jdk=$JAVA_HOME',
+              s
           )
 
           # 3.在iOS xargs行之后插入fuzz-fallback
@@ -201,8 +201,22 @@ jobs:
               print("OK: fuzz-fallback block inserted")
           else:
               print("WARN: iOS xargs line not found, fuzz-fallback skipped")
+          # 4.定义target
+              s = re.sub(
+                  r'(else\n\s*# =\s*=*\s*iOS)',
+                  r'\1\n\n
+                  s
+              )
 
-          # 4.make -k继续编译
+          # 5.替换为 $JAVA_HOME
+              s = re.sub(
+                  r'--with-boot-jdk=\$$/usr/libexec/java_home -v \$TARGET_VERSION$',
+                  '--with-boot-jdk=$JAVA_HOME',
+                  s
+              )
+
+
+          # 6.make -k继续编译
           old_make = 'make JOBS=$jobs images || \\'
           new_make = 'make JOBS=$jobs -k images || \\'
           if old_make in s:
