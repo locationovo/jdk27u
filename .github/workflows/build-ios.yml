@@ -170,7 +170,14 @@ jobs:
           else:
               print("WARN: git apply line not found, skipping")
 
-          # 2.在iOS xargs行之后插入fuzz-fallback
+          # 2.改引导Java
+          s = re.sub(
+          r'--with-boot-jdk=[^ ]+',
+          '--with-boot-jdk=$JAVA_HOME',
+          s
+      )
+
+          # 3.在iOS xargs行之后插入fuzz-fallback
           xargs_line_re = re.compile(
               r"^([ \t]*)find \.\./patches/jre[^\n]*ios[^\n]*\.diff[^\n]*xargs[^\n]*$",
               re.MULTILINE
@@ -195,7 +202,7 @@ jobs:
           else:
               print("WARN: iOS xargs line not found, fuzz-fallback skipped")
 
-          # 3.make -k继续编译
+          # 4.make -k继续编译
           old_make = 'make JOBS=$jobs images || \\'
           new_make = 'make JOBS=$jobs -k images || \\'
           if old_make in s:
