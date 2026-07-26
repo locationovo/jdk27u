@@ -161,7 +161,7 @@ jobs:
           with open('6_buildjdk.sh', 'r') as f:
               s = f.read()
 
-          # 1.git apply加上--reject
+          # 1. git apply 加上 --reject
           old_apply = 'git apply {} ||'
           new_apply = 'git apply --reject --whitespace=fix {} || echo "git apply had rejects (fuzz-fallback will handle)"'
           if old_apply in s:
@@ -170,14 +170,15 @@ jobs:
           else:
               print("WARN: git apply line not found, skipping")
 
-          # 2.改引导Java
+          # 2. 替换 --with-boot-jdk 为 $JAVA_HOME
           s = re.sub(
               r'--with-boot-jdk=[^ ]+',
               '--with-boot-jdk=$JAVA_HOME',
               s
           )
+          print("OK: --with-boot-jdk patched to \$JAVA_HOME")
 
-          # 3.在iOS xargs行之后插入fuzz-fallback
+          # 3. 在 iOS xargs 行之后插入 fuzz-fallback
           xargs_line_re = re.compile(
               r"^([ \t]*)find \.\./patches/jre[^\n]*ios[^\n]*\.diff[^\n]*xargs[^\n]*$",
               re.MULTILINE
@@ -201,22 +202,16 @@ jobs:
               print("OK: fuzz-fallback block inserted")
           else:
               print("WARN: iOS xargs line not found, fuzz-fallback skipped")
-          # 4.定义target
-              s = re.sub(
-                  r'(else\n\s*# =\s*=*\s*iOS)',
-                  r'\1\n\n
-                  s
-              )
 
-          # 5.替换为 $JAVA_HOME
-              s = re.sub(
-                  r'--with-boot-jdk=\$$/usr/libexec/java_home -v \$TARGET_VERSION$',
-                  '--with-boot-jdk=$JAVA_HOME',
-                  s
-              )
+          # 4. 定义 TARGET（避免 config.sub 收到 27)）
+          s = re.sub(
+              r'(else\n\s*# =\s*=*\s*iOS)',
+              r'\1\n\n  # 新增：定义交叉编译 target\n  export TARGET="aarch64-apple-darwin"',
+              s
+          )
+          print("OK: TARGET export added for iOS branch")
 
-
-          # 6.make -k继续编译
+          # 5. make -k 继续编译
           old_make = 'make JOBS=$jobs images || \\'
           new_make = 'make JOBS=$jobs -k images || \\'
           if old_make in s:
@@ -224,7 +219,7 @@ jobs:
               print("OK: make -k added")
           else:
               print("WARN: make line not found for -k flag")
-
+    
           with open('6_buildjdk.sh', 'w') as f:
               f.write(s)
           print("DONE: 6_buildjdk.sh patched")
