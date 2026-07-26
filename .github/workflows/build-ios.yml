@@ -87,7 +87,7 @@ jobs:
           )
           matches = list(xargs_line_re.finditer(s))
           if matches:
-              m = matches
+              m = matches[1]
               indent = m.group(1)
               fuzz_block = (
                   f"\n"
@@ -109,9 +109,13 @@ jobs:
           fixup_block = (
               f'{fixup_marker}\n'
               f'  echo "=== Running JDK {target_ver} iOS fixups ==="\n'
-              f'  python3 ../../amethyst/scripts/jdk27_ios_patches/jdk27_ios_fixups.py openjdk-{target_ver} || echo "WARNING: some fixups failed, continuing"\n'
+              f'  for script in ../.github/scripts/jdk27_ios_patches/*.sh; do\n'
+              f'    echo "  [fixup] $(basename "$script")"\n'
+              f'    bash "$script" openjdk-{target_ver} || echo "WARNING: $script failed, continuing"\n'
+              f'  done\n'
               f'fi\n'
           )
+
           # Insert after the fuzz-fallback block, before the make line
           make_line = 'make JOBS=$jobs'
           if make_line in s:
