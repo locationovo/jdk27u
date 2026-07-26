@@ -225,6 +225,45 @@ jobs:
               f.write(s)
           print("DONE: 6_buildjdk.sh patched")
           PYEOF
+          # 6.修改 config.sub，在开头插入参数清洗逻辑
+          #    任何包含 ) 的非法参数直接返回 aarch64-apple-darwin
+          config_sub_path = 'openjdk-27/make/autoconf/build-aux/config.sub'
+          try:
+              with open(config_sub_path, 'r') as f:
+                  config_sub = f.read()
+              # 在 #!/bin/sh 之后插入容错代码
+              guard = (
+                  '# --- iOS cross-compile guard: sanitize invalid args like 27) ---\n'
+                  'case "$1" in\n'
+                  '  *\)*) echo "aarch64-apple-darwin" ; exit 0 ;;\n'
+                  'esac\n'
+              )
+              config_sub = config_sub.replace(
+                  '#!/bin/sh\n',
+                  '#!/bin/sh\n' + guard,
+                  1
+              )
+              with open(config_sub_path, 'w') as f:
+                  f.write(config_sub)
+              print("OK: config.sub guard inserted")
+          except FileNotFoundError:
+              print("WARN: config.sub not found, guard skipped")
+
+          # 7. 同时显式硬编码 --build 和 --host，避免自动检测
+          #    把 platform_args 中的 --build 和 --host 替换为硬编码值
+          #    如果不存在则追加到 platform_args 末尾
+          if '--build=' not in s:
+              s = re.sub(
+                  r'(platform_args=")',
+                  r'\1--build=$(uname -m)-apple-darwin --host=aarch64-apple-darwin ',
+                  s
+              )
+              print("OK: --build and --host hardcoded in platform_args")
+          else:
+              s = re.sub(r'--build=[^ "]+', '--build=$(uname -m)-apple-darwin', s)
+              s = re.sub(r'--host=[^ "]+', '--host=aarch64-apple-darwin', s)
+              print("OK: --build and --host replaced with hardcoded values")
+          # 请输入文本
 
       - name: Build iOS JDK 27
         working-directory: openjdk-build
