@@ -175,7 +175,7 @@ jobs:
           r'--with-boot-jdk=[^ ]+',
           '--with-boot-jdk=$JAVA_HOME',
           s
-      )
+          )
 
           # 3.在iOS xargs行之后插入fuzz-fallback
           xargs_line_re = re.compile(
