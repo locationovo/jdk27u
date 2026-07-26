@@ -31,26 +31,27 @@ jobs:
           #!/bin/bash
           set -e
           . setdevkitpath.sh
-
+    
           export JDK_DEBUG_LEVEL=release
-
+    
           if [[ "$BUILD_IOS" != "1" ]]; then
-            # 原版保留
-            if [[ -d $NDK ]]; then
-              echo "NDK already installed."
+            # ====== 原版 Android 分支，完全保留 ======
+            if [[ -d "$ANDROID_NDK_HOME" ]]; then
+              echo "NDK already exists: $ANDROID_NDK_HOME"
             else
+              echo "Downloading NDK"
               wget -nc -nv -O android-ndk-$NDK_VERSION-linux-x86_64.zip \
-                "https://dl.google.com/android/repository/android-ndk-$NDK_VERSION-linux-x86_64.zip"
-              ./extractndk.sh
+                "https://dl.google.com/android/repository/android-ndk-$NDK_VERSION-linux.zip"
+              unzip -q android-ndk-$NDK_VERSION-linux-x86_64.zip
             fi
-            ./maketoolchain.sh
+            cp devkit.info.${TARGET_SHORT} ${TOOLCHAIN}
           else
-            # iOS
-      
+            # ====== iOS 分支 ======
+
             chmod +x ios-arm64-clang 2>/dev/null || true
             chmod +x ios-arm64-clang++ 2>/dev/null || true
             chmod +x macos-host-cc 2>/dev/null || true
-
+    
             export SDK_PATH="$(xcrun --sdk iphoneos --show-sdk-path)"
             export MIN_IOS="${MIN_IOS:-15.0}"
             export CC="$(xcrun --sdk iphoneos --find clang) -arch arm64 -isysroot $SDK_PATH -mios-version-min=$MIN_IOS"
@@ -58,18 +59,21 @@ jobs:
             export CFLAGS="-isysroot $SDK_PATH -mios-version-min=$MIN_IOS"
             export CXXFLAGS="-isysroot $SDK_PATH -mios-version-min=$MIN_IOS"
             export LDFLAGS="-isysroot $SDK_PATH -mios-version-min=$MIN_IOS"
-      
+    
             echo "=== iOS SDK: $SDK_PATH ==="
             echo "=== CC: $(xcrun --sdk iphoneos --find clang) ==="
 
             ln -sf .. openjdk-27
           fi
+    
+          # Some modifies to NDK to fix
 
-          # 公共流程
-
-          ./getlibs.sh
-          ./buildlibs.sh
-      
+          # Only build the sources if they are not already present
+          if [ ! -d "cups-2.2.4" ]; then
+            ./3_getlibs.sh
+            ./4_buildlibs.sh
+          fi
+    
           if [[ "$BUILD_IOS" == "1" ]]; then
             echo "=== Running iOS JDK fixups ==="
             FIXUP_DIR="../amethyst/scripts/jdk27_ios_patches"
@@ -82,13 +86,13 @@ jobs:
               echo "  WARN: fixup directory not found: $FIXUP_DIR"
             fi
           else
-            ./clonejdk.sh
+            ./5_clonejdk.sh
           fi
-      
-          ./buildjdk.sh
-          ./removejdkdebuginfo.sh
-      
-          # 签名
+
+          ./6_buildjdk.sh
+          ./7_removejdkdebuginfo.sh
+    
+          # iOS 签名
           if [[ "$BUILD_IOS" == "1" ]]; then
             echo "=== iOS post-build: signing ==="
             JRE_DIR=$(find build -type d -path "*/images/jre" 2>/dev/null | head -1)
@@ -100,8 +104,8 @@ jobs:
               echo "  WARN: JRE image not found, skipping sign"
             fi
           fi
-      
-          ./tarjdk.sh
+    
+          ./8_tarjdk.sh
           SCRIPT_EOF
           chmod +x 2_ci_build_global.sh
           echo "=== Patched 2_ci_build_global.sh ==="
