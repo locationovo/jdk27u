@@ -42,8 +42,8 @@ jobs:
         working-directory: openjdk-build
         run: |
           mkdir -p patches/jre_27/ios
-          cp patches/jre_25/ios/1_jdk21u_ios.diff patches/jre_27/ios/
-          cp patches/jre_25/ios/2_mirror_mapping.diff patches/jre_27/ios/
+          cp patches/jre_21/ios/1_jdk21u_ios.diff patches/jre_27/ios/
+          cp patches/jre_21/ios/2_mirror_mapping.diff patches/jre_27/ios/
           cp ../../amethyst/scripts/jdk27_ios_patches/*.diff patches/jre_27/ios/ 2>/dev/null || true
 
       - name: Make build scripts executable
