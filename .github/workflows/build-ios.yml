@@ -203,13 +203,14 @@ jobs:
           else:
               print("WARN: iOS xargs line not found, fuzz-fallback skipped")
 
-          # 4. 定义 TARGET（避免 config.sub 收到 27)）
-          s = re.sub(
-              r'(else\n\s*# =\s*=*\s*iOS)',
-              r'\1\n\n  # 新增：定义交叉编译 target\n  export TARGET="aarch64-apple-darwin"',
-              s
-          )
-          print("OK: TARGET export added for iOS branch")
+          # 4. 硬编码--openjdk-target :(
+              s = re.sub(
+                  r'--openjdk-target=\$TARGET',
+                  '--openjdk-target=aarch64-apple-darwin',
+                  s
+              )
+              print("OK: --openjdk-target hardcoded to aarch64-apple-darwin")
+
 
           # 5. make -k 继续编译
           old_make = 'make JOBS=$jobs images || \\'
