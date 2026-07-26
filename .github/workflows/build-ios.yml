@@ -69,25 +69,29 @@ jobs:
         working-directory: openjdk-build
         run: |
           python3 - "$TARGET_VERSION" << 'PYEOF'
-          import sys
+          import sys, re
+
           target_ver = sys.argv
-          with open('6_buildjdk.sh','r') as f:
+          with open('6_buildjdk.sh', 'r') as f:
               s = f.read()
 
-          # 1. git apply with --reject
+          # 1.git apply加上 --reject
           old_apply = 'git apply {} ||'
           new_apply = 'git apply --reject --whitespace=fix {} || echo "git apply had rejects (fuzz-fallback + fixup script will handle)"'
-          s = s.replace(old_apply, new_apply)
+          if old_apply in s:
+              s = s.replace(old_apply, new_apply)
+              print("OK: git apply --reject added")
+          else:
+              print("WARN: git apply line not found, skipping")
 
-          # 2. Insert fuzz-fallback after iOS xargs
-          import re
+          # 2.在iOS xargs行之后插入fuzz-fallback（匹配不到则跳过）
           xargs_line_re = re.compile(
               r"^([ \t]*)find \.\./patches/jre[^\n]*ios[^\n]*\.diff[^\n]*xargs[^\n]*$",
               re.MULTILINE
           )
           matches = list(xargs_line_re.finditer(s))
           if matches:
-              m = matches[1]
+              m = matches[0]
               indent = m.group(1)
               fuzz_block = (
                   f"\n"
@@ -103,32 +107,46 @@ jobs:
                   f"{indent}python3 ../../amethyst/scripts/apply_rejs.py openjdk-{target_ver} || true\n"
               )
               s = s[:m.end()] + fuzz_block + s[m.end():]
+              print("OK: fuzz-fallback block inserted")
+          else:
+              print("WARN: iOS xargs line not found, fuzz-fallback skipped")
 
-          # 3. Insert jdk27 fixup
+          # 3.在make之前插入fixup脚本批量执行
           fixup_marker = f'if [[ "$BUILD_IOS" == "1" ]] && [[ "$TARGET_VERSION" == "{target_ver}" ]]; then'
           fixup_block = (
               f'{fixup_marker}\n'
               f'  echo "=== Running JDK {target_ver} iOS fixups ==="\n'
-              f'  for script in ../.github/scripts/jdk27_ios_patches/*.sh; do\n'
+              f'  for script in .github/scripts/jdk27_ios_patches/*.sh; do\n'
               f'    echo "  [fixup] $(basename "$script")"\n'
               f'    bash "$script" openjdk-{target_ver} || echo "WARNING: $script failed, continuing"\n'
               f'  done\n'
               f'fi\n'
           )
-
-          # Insert after the fuzz-fallback block, before the make line
-          make_line = 'make JOBS=$jobs'
+          make_line = 'make JOBS=$jobs images || \\'
           if make_line in s:
               s = s.replace(make_line, fixup_block + '\n' + make_line)
+              print("OK: fixup scripts inserted before make")
+          else:
+              # 备选：尝试其他make行格式
+              alt_make = 'make JOBS=$jobs'
+              if alt_make in s:
+                  s = s.replace(alt_make, fixup_block + '\n' + alt_make)
+                  print("OK: fixup scripts inserted (alt make line)")
+              else:
+                  print("WARN: make line not found, fixup scripts NOT inserted")
 
-          # 4. make -k
+          # 4.make -k继续编译
           old_make = 'make JOBS=$jobs images || \\'
           new_make = 'make JOBS=$jobs -k images || \\'
-          s = s.replace(old_make, new_make)
+          if old_make in s:
+              s = s.replace(old_make, new_make)
+              print("OK: make -k added")
+          else:
+              print("WARN: make line not found for -k flag")
 
-          with open('6_buildjdk.sh','w') as f:
+          with open('6_buildjdk.sh', 'w') as f:
               f.write(s)
-          print("OK: patched 6_buildjdk.sh")
+          print("DONE: 6_buildjdk.sh patched")
           PYEOF
 
       - name: Build iOS JDK 27
