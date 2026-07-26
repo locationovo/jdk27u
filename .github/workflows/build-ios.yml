@@ -5,7 +5,7 @@ on:
   push:
     paths:
       - '.github/workflows/build-ios.yml'
-      - 'scripts/jdk27_ios_patches/**'
+      - '.github/scripts/jdk27_ios_patches/**'
 
 jobs:
   build:
@@ -26,7 +26,7 @@ jobs:
 
       - name: Override 2_ci_build_global.sh with iOS adaption
         run: |
-          cp scripts/ci_build_global_ios.sh openjdk-build/2_ci_build_global.sh
+          cp .github/scripts/ci_build_global_ios.sh openjdk-build/2_ci_build_global.sh
           chmod +x openjdk-build/2_ci_build_global.sh
           echo "=== Patched 2_ci_build_global.sh ==="
           head -5 openjdk-build/2_ci_build_global.sh
