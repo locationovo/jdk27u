@@ -63,7 +63,7 @@ jobs:
             echo "=== iOS SDK: $SDK_PATH ==="
             echo "=== CC: $(xcrun --sdk iphoneos --find clang) ==="
 
-            ln -sf .. openjdk-27
+            ln -sf ../amethyst openjdk-27
           fi
     
           # Some modifies to NDK to fix
@@ -109,7 +109,6 @@ jobs:
           SCRIPT_EOF
           chmod +x 2_ci_build_global.sh
           echo "=== Patched 2_ci_build_global.sh ==="
-          head -5 2_ci_build_global.sh
 
       - name: Setup boot JDK (Temurin 26)
         uses: actions/setup-java@v4
